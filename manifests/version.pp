@@ -143,6 +143,8 @@ define php::version(
         Package['boxen/brews/zlibphp'],
         Package['autoconf'],
         Package['boxen/brews/autoconf213'],
+        Package['homebrew/versions/openssl101'],
+        Package['curl'],
       ],
       notify            => Exec["phpenv-rehash-post-install-${patch_version}"],
       configure_params  => $configure_params,

@@ -85,6 +85,16 @@ Puppet::Type.type(:php_version).provide(:php_source) do
     puts "Installing PHP #{@resource[:version]}, this may take a while..."
     configure(version)
 
+    # Fix for openssl when building 5.5
+    # Discussed here: https://github.com/Homebrew/homebrew-php/issues/1941
+    #       and here: https://github.com/boxen/puppet-php/issues/78
+    makefile = "#{@resource[:phpenv_root]}/php-src/Makefile"
+    makefileOutdata = File.read(makefile).gsub(/^EXTRA_LIBS = (.*)/, "EXTRA_LIBS = \\1 #{@resource[:homebrew_path]}/opt/openssl101/lib/libssl.dylib #{@resource[:homebrew_path]}/opt/openssl101/lib/libcrypto.dylib")
+
+    File.open(makefile, 'w') do |out|
+      out << makefileOutdata
+    end
+
     # Make & install
     make
     make_install
@@ -170,7 +180,7 @@ Puppet::Type.type(:php_version).provide(:php_source) do
 
     # PHP 5.5+ requires a later version of Bison than OSX provides (2.6 vs 2.3)
     if Gem::Version.new(@resource[:version]) > Gem::Version.new('5.4.17')
-      env << " && export PATH=/opt/boxen/homebrew/opt/bisonphp26/bin:$PATH"
+      env << " && export PATH=#{@resource[:homebrew_path]}/opt/bisonphp26/bin:$PATH"
     end
 
     # Construct and run configure command
@@ -192,7 +202,7 @@ Puppet::Type.type(:php_version).provide(:php_source) do
   def make
     # PHP > 5.4.17 requires a later version of Bison than OSX provides (2.6 vs 2.3)
     if Gem::Version.new(@resource[:version]) > Gem::Version.new('5.4.17')
-      env = " && export PATH=/opt/boxen/homebrew/opt/bisonphp26/bin:$PATH"
+      env = " && export PATH=#{@resource[:homebrew_path]}/opt/bisonphp26/bin:$PATH"
     end
 
     puts %x( cd #{@resource[:phpenv_root]}/php-src/ #{env} && make 2>&1 )
@@ -254,9 +264,9 @@ Puppet::Type.type(:php_version).provide(:php_source) do
       "--with-snmp=/usr",
       "--with-libedit",
       "--with-mhash",
-      "--with-curl",
-      "--with-openssl=/usr",
-      "--with-bz2=/usr",
+      "--with-curl=#{@resource[:homebrew_path]}/opt/curl",
+      "--with-openssl=#{@resource[:homebrew_path]}/opt/openssl101",
+      "--with-bz2=#{@resource[:homebrew_path]}/opt/bzip2",
 
       "--with-mysql-sock=/tmp/mysql.sock",
       "--with-mysqli=mysqlnd",
